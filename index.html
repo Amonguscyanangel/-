@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커</title>
+    <title>블랙 클릭커 - 최종 최적화</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; }
         #game-container { width: 100%; max-width: 450px; margin: auto; background: #2a2a2a; padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        /* 이미지 영역 최적화 */
+        /* 클릭 영역 */
         .click-pad { background: #333; margin: 15px auto; width: 260px; height: 260px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: 0.05s; overflow: hidden; }
-        .click-pad:active { transform: scale(0.94); }
+        .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
         
-        /* 이미지 로딩 전까지 공간 확보 */
-        #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; min-height: 100px; }
+        /* 메인 캐릭터 이미지 */
+        #click-target { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
         
         .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         button { width: 100%; padding: 16px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 2px solid #555; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
@@ -34,7 +34,7 @@
     <h1>블랙 클릭커</h1>
     <div id="setup">
         <input type="text" id="username" placeholder="닉네임 입력">
-        <button onclick="startGame()">게임 시작</button>
+        <button onclick="startGame()">게임 시작 / 불러오기</button>
     </div>
 
     <div id="play-area" style="display:none;">
@@ -42,12 +42,13 @@
         <div id="fever-indicator" style="color:red; font-weight:bold; visibility:hidden; height:20px;">🔥 피버 타임! 🔥</div>
 
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="black3.gif" alt="이미지 로딩 중...">
+            <img id="click-target" src="black3.gif" alt="이미지 로드 실패">
         </div>
         
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
         <div id="helper-list"></div>
 
+        <h3>🏆 실시간 랭킹</h3>
         <table id="rank-table">
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
             <tbody id="rank-body"></tbody>
@@ -56,56 +57,63 @@
 </div>
 
 <script>
-    // 드라이브 링크가 안 뜰 경우를 대비해 로컬 파일명을 기본값으로 사용
-    const IMG_NORMAL = "black3.gif"; // 기본 움짤
+    // [중요] 이미지 경로 설정
+    // 같은 폴더에 파일이 있다면 이대로 두시고, 온라인 링크를 쓰려면 "http..." 주소를 넣으세요.
+    const IMG_NORMAL = "black3.gif"; // 평상시 움짤
     const IMG_CLICK = "black1.jpg";  // 클릭 시 인형
     const IMG_HELPER = "black2.jpg"; // 도우미
 
-    let score = 0, helpers = 0, myName = "", isFever = false, restoreTimer = null;
+    let score = 0;
+    let helpersCount = 0;
+    let myName = "";
+    let isFever = false;
+    let restoreTimer = null;
 
-    // 데이터 복구
+    // 데이터 복구 (초기화 방지)
     window.onload = () => {
-        const saved = localStorage.getItem('blackClicker_vFINAL');
+        const saved = localStorage.getItem('blackClicker_vFinal');
         if(saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
-            helpers = data.helpers || 0;
-            if(data.name) document.getElementById('username').value = data.name;
+            helpersCount = data.helpersCount || 0;
+            if(data.myName) document.getElementById('username').value = data.myName;
         }
     };
 
     function startGame() {
         myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("이름을 입력하세요");
+        if(!myName) return alert("닉네임을 입력해주세요!");
         
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
         document.getElementById('display-name').innerText = myName;
         
-        // 초기 이미지 강제 로드
         const target = document.getElementById('click-target');
-        target.src = IMG_NORMAL;
-        
-        // 이미지 로드 실패 시 대체 처리
-        target.onerror = function() {
-            console.error("이미지를 불러올 수 없어 로컬 경로로 시도합니다.");
-            this.alt = "이미지 파일 확인 필요";
-        };
+        target.src = IMG_NORMAL; // 시작하자마자 기본 움짤 로드
 
-        const pad = document.getElementById('main-pad');
-        pad.addEventListener('pointerdown', handleImageClick);
-
-        setInterval(feverCycle, 15000);
-        setInterval(() => {
-            localStorage.setItem('blackClicker_vFINAL', JSON.stringify({score, helpers, name: myName}));
-        }, 5000);
-
-        // 저장된 도우미 비주얼 복구
-        for(let i=0; i<helpers; i++) {
+        // 도우미 복구
+        for(let i=0; i<helpersCount; i++) {
             addHelperVisual();
             setInterval(() => { score += 2; updateUI(); }, 1000);
         }
         updateUI();
+
+        const pad = document.getElementById('main-pad');
+        pad.addEventListener('pointerdown', handleImageClick);
+
+        // 피버타임 및 자동 저장 루프
+        setInterval(() => {
+            isFever = true;
+            document.getElementById('fever-indicator').style.visibility = 'visible';
+            setTimeout(() => {
+                isFever = false;
+                document.getElementById('fever-indicator').style.visibility = 'hidden';
+            }, 5000);
+        }, 20000);
+
+        setInterval(() => {
+            localStorage.setItem('blackClicker_vFinal', JSON.stringify({score, helpersCount, myName}));
+        }, 5000);
     }
 
     function handleImageClick(e) {
@@ -115,12 +123,11 @@
         score += isFever ? 10 : 5;
         updateUI();
 
-        // 클릭 이미지로 교체
-        img.src = IMG_CLICK;
+        img.src = IMG_CLICK; // 클릭 이미지로 변경
 
         if (restoreTimer) clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => {
-            // 다시 움짤로 복구 (캐시 방지 파라미터 추가)
+            // 캐시 방지를 위해 랜덤 파라미터 추가하여 움짤 복구
             img.src = IMG_NORMAL + "?t=" + Date.now();
         }, 150);
     }
@@ -133,7 +140,7 @@
     function buyHelper() {
         if(score >= 200) {
             score -= 200;
-            helpers++;
+            helpersCount++;
             addHelperVisual();
             setInterval(() => { score += 2; updateUI(); }, 1000);
             updateUI();
@@ -146,15 +153,6 @@
         hImg.src = IMG_HELPER;
         hImg.className = "helper-img";
         hList.appendChild(hImg);
-    }
-
-    function feverCycle() {
-        isFever = true;
-        document.getElementById('fever-indicator').style.visibility = 'visible';
-        setTimeout(() => {
-            isFever = false;
-            document.getElementById('fever-indicator').style.visibility = 'hidden';
-        }, 5000);
     }
 </script>
 </body>
