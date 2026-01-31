@@ -6,57 +6,49 @@
     <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
-        body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; overflow-x: hidden; touch-action: manipulation; }
-        #game-container { width: 100%; max-width: 450px; margin: auto; background: #2a2a2a; padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; }
+        #game-container { width: 100%; max-width: 400px; margin: auto; background: #2a2a2a; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
         /* 클릭 영역 */
-        .click-pad { background: #333; margin: 15px auto; width: 250px; height: 250px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; }
-        .click-pad:active { transform: scale(0.92); }
+        .click-pad { background: #333; margin: 20px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 4px solid #444; transition: 0.05s; }
+        .click-pad:active { transform: scale(0.95); }
         
-        /* 메인 이미지 설정 */
-        #click-target { width: 180px; height: 180px; border-radius: 15px; object-fit: contain; pointer-events: none; }
+        /* 메인 캐릭터 이미지 */
+        #click-target { width: 160px; height: 160px; border-radius: 10px; pointer-events: none; }
         
-        .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
-        .fever-txt { color: #ff4757; font-weight: bold; height: 30px; visibility: hidden; font-size: 1.2em; }
-        
-        button { width: 100%; padding: 16px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 2px solid #555; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
-        button:disabled { opacity: 0.3; cursor: not-allowed; background: #222; }
-        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; background: #333; color: white; }
+        .score-box { font-size: 24px; font-weight: bold; margin: 10px 0; color: #00ff88; }
+        button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; }
+        button:disabled { opacity: 0.3; background: #222; }
 
-        #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
-        #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
-        #rank-table th { background: #00ff88; color: #000; }
+        /* 도우미 리스트 - 깔끔한 2줄 정렬 */
+        #helper-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
+        .helper-item { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #00ff88; background: #333; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .helper-item img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 도우미 리스트 스타일 */
-        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; min-height: 50px; }
-        .helper-item { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; background: #444; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .helper-img { width: 100%; height: 100%; object-fit: cover; }
+        #rank-table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px; background: #111; }
+        #rank-table th, #rank-table td { padding: 8px; border: 1px solid #222; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <h1>블랙 클릭커</h1>
-    
+    <h2>블랙 클릭커</h2>
     <div id="setup">
-        <input type="text" id="username" placeholder="닉네임 입력">
-        <button onclick="startGame()">게임 시작</button>
+        <input type="text" id="username" placeholder="닉네임" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;">
+        <button onclick="startGame()">시작</button>
     </div>
 
     <div id="play-area" style="display:none;">
-        <div class="score-box"><span id="display-name"></span>: <span id="score">0</span>점</div>
-        <div id="fever-indicator" class="fever-txt">🔥 FEVER TIME 🔥</div>
+        <div class="score-box"><span id="score">0</span>점</div>
+        <div id="fever-indicator" style="color:red; height:20px; visibility:hidden;">🔥 피버 타임!</div>
 
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="로딩중...">
+            <img id="click-target" src="" alt="캐릭터">
         </div>
         
-        <div>
-            <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점) [<span id="h-count">0</span>/10]</button>
-            <div id="helper-list"></div>
-        </div>
+        <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점) <br><small>(<span id="h-count">0</span> / 10명)</small></button>
+        <div id="helper-list"></div>
 
-        <h3>🏆 실시간 랭킹</h3>
         <table id="rank-table">
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
             <tbody id="rank-body"></tbody>
@@ -67,55 +59,35 @@
 <audio id="bgm" loop><source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg"></audio>
 
 <script>
-    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; 
+    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
     
-    // 이미지 주소 (보안 차단을 줄이기 위한 주소 형식)
-    const IMG_NORMAL = "https://docs.google.com/uc?export=view&id=1yftP1Ph400vovYQfy6cZ_eteguZrOxf";
-    const IMG_CLICK = "https://docs.google.com/uc?export=view&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
-    const IMG_HELPER = "https://docs.google.com/uc?export=view&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
+    // 💡 구글 드라이브가 막힐 때를 대비한 직접 링크 주소 (가장 안정적인 방식)
+    const IMG_NORMAL = "https://lh3.googleusercontent.com/d/1yftP1Ph400vovYQfy6cZ_eteguZrOxf";
+    const IMG_CLICK = "https://lh3.googleusercontent.com/d/1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
+    const IMG_HELPER = "https://lh3.googleusercontent.com/d/1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
 
     let score = 0;
     let isFever = false;
     let myName = "";
     let helpers = 0;
-    const maxHelpers = 10; // 도우미 최대 인원
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    // 이미지 사전 로딩
-    const preImg = new Image(); preImg.src = IMG_CLICK;
-
-    function beep(freq) {
-        if(audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    }
+    const MAX_HELPERS = 10;
 
     async function startGame() {
         myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("닉네임을 입력해주세요!");
+        if(!myName) return alert("이름을 입력하세요");
         
-        document.getElementById('click-target').src = IMG_NORMAL;
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
-        document.getElementById('display-name').innerText = myName;
-        
+        document.getElementById('click-target').src = IMG_NORMAL;
         document.getElementById('bgm').play().catch(()=>{});
 
-        // 저장 데이터 불러오기
+        // 불러오기
         const saved = localStorage.getItem('blackClickerData');
         if(saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
-            const savedHelpers = Math.min(data.helpers || 0, maxHelpers);
-            for(let i=0; i<savedHelpers; i++) {
-                helpers++;
-                addHelperVisual();
-                startHelperInterval();
-            }
+            const savedH = Math.min(data.helpers || 0, MAX_HELPERS);
+            for(let i=0; i<savedH; i++) { helpers++; addHelperVisual(); startHelperInterval(); }
             updateUI();
         }
 
@@ -123,34 +95,47 @@
         pad.addEventListener('touchstart', (e) => { e.preventDefault(); handleImageClick(); });
         pad.addEventListener('mousedown', (e) => { if('ontouchstart' in window) return; handleImageClick(); });
 
-        await loadRanking();
-        startFeverTimer();
-        setInterval(() => { uploadScore(); localStorage.setItem('blackClickerData', JSON.stringify({score, helpers, name: myName})); }, 20000);
+        loadRanking();
+        setInterval(() => { uploadScore(); localStorage.setItem('blackClickerData', JSON.stringify({score, helpers, name:myName})); }, 15000);
+        
+        // 피버 루프
+        setInterval(() => {
+            isFever = true; document.getElementById('fever-indicator').style.visibility = 'visible';
+            setTimeout(() => { isFever = false; document.getElementById('fever-indicator').style.visibility = 'hidden'; }, 5000);
+        }, 20000);
     }
 
     function handleImageClick() {
-        beep(isFever ? 700 : 400);
         const img = document.getElementById('click-target');
         img.src = IMG_CLICK;
-        
         score += isFever ? 10 : 5;
         updateUI();
-
-        setTimeout(() => { img.src = IMG_NORMAL; }, 120);
+        setTimeout(() => { img.src = IMG_NORMAL; }, 100);
     }
 
     function updateUI() {
         document.getElementById('score').innerText = Math.floor(score);
         document.getElementById('h-count').innerText = helpers;
-        
-        // 도우미가 10명이면 버튼 비활성화
-        const buyBtn = document.getElementById('buy-btn');
-        if(helpers >= maxHelpers) {
-            buyBtn.disabled = true;
-            buyBtn.innerText = "도우미 정원 초과 (최대 10명)";
-        } else {
-            buyBtn.disabled = (score < 200);
+        document.getElementById('buy-btn').disabled = (score < 200 || helpers >= MAX_HELPERS);
+        if(helpers >= MAX_HELPERS) document.getElementById('buy-btn').innerText = "도우미 정원 초과";
+    }
+
+    function buyHelper() {
+        if(score >= 200 && helpers < MAX_HELPERS) {
+            score -= 200; helpers++;
+            addHelperVisual(); startHelperInterval(); updateUI();
         }
+    }
+
+    function addHelperVisual() {
+        const div = document.createElement('div');
+        div.className = "helper-item";
+        div.innerHTML = `<img src="${IMG_HELPER}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzAwZmY4OCIgZD0iTTEyIDJDMiAyIDIgMTAgMiAxMHMwIDggMTAgOCA4LTEwIDgtOC0xMC04LTEwIDgtOC0xMC04eiIvPjwvc3ZnPg=='">`;
+        document.getElementById('helper-list').appendChild(div);
+    }
+
+    function startHelperInterval() {
+        setInterval(() => { score += 2; updateUI(); }, 1000);
     }
 
     async function loadRanking() {
@@ -159,63 +144,22 @@
             const data = await res.json();
             const tbody = document.getElementById('rank-body');
             tbody.innerHTML = "";
-            data.sort((a, b) => b.score - a.score).slice(0, 5).forEach((item, index) => {
-                tbody.innerHTML += `<tr><td>${index+1}</td><td>${item.name}</td><td>${item.score}</td></tr>`;
+            data.sort((a,b)=>b.score-a.score).slice(0,5).forEach((v,i)=>{
+                tbody.innerHTML += `<tr><td>${i+1}</td><td>${v.name}</td><td>${v.score}</td></tr>`;
             });
-        } catch(e) {}
+        } catch(e){}
     }
 
     async function uploadScore() {
         try {
             const res = await fetch(API_URL);
             let data = await res.json();
-            const userIndex = data.findIndex(u => u.name === myName);
-            if(userIndex > -1) { data[userIndex].score = Math.max(data[userIndex].score, score); }
-            else { data.push({ name: myName, score: score }); }
-            await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            await loadRanking();
-        } catch(e) {}
-    }
-
-    function startFeverTimer() {
-        setInterval(() => {
-            isFever = true;
-            document.getElementById('fever-indicator').style.visibility = 'visible';
-            setTimeout(() => {
-                isFever = false;
-                document.getElementById('fever-indicator').style.visibility = 'hidden';
-            }, 5000);
-        }, 15000);
-    }
-
-    function buyHelper() {
-        if(score >= 200 && helpers < maxHelpers) {
-            score -= 200;
-            helpers++;
-            beep(250);
-            addHelperVisual();
-            startHelperInterval();
-            updateUI();
-        }
-    }
-
-    function addHelperVisual() {
-        const hList = document.getElementById('helper-list');
-        const div = document.createElement('div');
-        div.className = "helper-item";
-        
-        const img = document.createElement('img');
-        img.src = IMG_HELPER;
-        img.className = "helper-img";
-        // 이미지가 안 뜰 경우 '👤' 표시
-        img.onerror = function() { this.style.display='none'; div.innerText='👤'; };
-        
-        div.appendChild(img);
-        hList.appendChild(div);
-    }
-
-    function startHelperInterval() {
-        setInterval(() => { score += 2; updateUI(); }, 1000);
+            const idx = data.findIndex(u=>u.name===myName);
+            if(idx>-1) data[idx].score = Math.max(data[idx].score, score);
+            else data.push({name:myName, score});
+            await fetch(API_URL, {method:'POST', body:JSON.stringify(data)});
+            loadRanking();
+        } catch(e){}
     }
 </script>
 </body>
