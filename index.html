@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커 - 이미지 내장 버전</title>
+    <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; height: 100vh; display: flex; align-items: center; justify-content: center; }
         #game-container { width: 100%; max-width: 450px; background: #2a2a2a; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
+        /* 메인 클릭 패드 */
         .click-pad { background: #333; margin: 15px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; position: relative; overflow: hidden; }
         .click-pad:active { transform: scale(0.95); border-color: #00ff88; }
         #click-target { width: 170px; height: 170px; object-fit: contain; pointer-events: none; }
@@ -16,10 +17,13 @@
         .score-box { font-size: 28px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.3; }
-        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: none; text-align: center; background: #333; color: white; }
+        
+        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: none; text-align: center; background: #333; color: white; border: 1px solid #555; }
 
-        #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
+        /* 랭킹 테이블 */
+        #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; border-radius: 10px; overflow: hidden; }
         #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
+        #rank-table th { background: #333; color: #00ff88; }
     </style>
 </head>
 <body>
@@ -33,14 +37,14 @@
 
     <div id="play-area" style="display:none;">
         <div class="score-box"><span id="score">0</span>점</div>
-        <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:20px;">🔥 피버 타임 (3배!) 🔥</div>
+        <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:20px; font-size:14px;">🔥 피버 타임 (3배!) 🔥</div>
         
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="이미지 로드중">
+            <img id="click-target" src="" alt="준비 완료">
         </div>
         
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px;"></div>
+        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-top: 10px;"></div>
 
         <table id="rank-table">
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
@@ -50,19 +54,20 @@
 </div>
 
 <script>
-    // 1. 이미지 데이터 내장 (black1.jpg 직접 변환값 사용)
-    // IMG_CLICK은 보내주신 파일을 코드로 넣었습니다. 
-    // IMG_NORMAL과 IMG_HELPER는 파일이 같은 폴더에 있어야 하며, 안 보일 경우를 대비해 텍스트를 출력합니다.
+    // 1. [핵심] 사용자가 준 PNG 이미지의 Base64 데이터를 아래에 넣으세요.
+    // "data:image/png;base64,..." 형태의 긴 코드를 여기에 붙여넣으면 파일 없이도 이미지가 뜹니다.
+    const IMG_CLICK_DATA = "data:image/png;base64, 여기에_PNG_변환_코드를_넣으세요"; 
+    
+    // 나머지 이미지 링크 (파일이 폴더에 있어야 함)
     const IMG_NORMAL = "black3.gif"; 
-    const IMG_CLICK = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; 
     const IMG_HELPER = "black2.jpg"; 
+    
     const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
-
     let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
 
-    // 기기 저장 데이터 복구
+    // 기기 저장 데이터 로드
     window.onload = () => {
-        const saved = localStorage.getItem('blackClicker_v_final');
+        const saved = localStorage.getItem('blackClicker_storage_v14');
         if (saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
@@ -86,7 +91,7 @@
         }
         updateUI();
         loadRanking();
-        setInterval(saveData, 5000);
+        setInterval(saveData, 5000); // 5초마다 기기 저장 및 랭킹 전송
     }
 
     function handleImageClick(e) {
@@ -95,15 +100,17 @@
         score += isFever ? 15 : 5;
         updateUI();
 
-        img.src = IMG_CLICK; // 클릭 시 black1.jpg 
+        // 클릭 시 PNG 데이터를 직접 소스로 사용
+        img.src = IMG_CLICK_DATA;
+        
         if (restoreTimer) clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => {
             img.src = IMG_NORMAL + "?t=" + Date.now();
-        }, 130); 
+        }, 120); 
     }
 
     function saveData() {
-        localStorage.setItem('blackClicker_v_final', JSON.stringify({ score, helpersCount, myName }));
+        localStorage.setItem('blackClicker_storage_v14', JSON.stringify({ score, helpersCount, myName }));
         uploadScore();
     }
 
@@ -117,7 +124,7 @@
             await fetch(API_URL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data.sort((a,b) => b.score - a.score).slice(0, 5))
+                body: JSON.stringify(data.sort((a,b) => b.score - a.score).slice(0, 10))
             });
             loadRanking();
         } catch(e) {}
@@ -160,6 +167,7 @@
 
     document.getElementById('main-pad').addEventListener('pointerdown', handleImageClick);
 
+    // 20초마다 5초간 피버 타임
     setInterval(() => {
         isFever = true;
         document.getElementById('fever-indicator').style.visibility = 'visible';
