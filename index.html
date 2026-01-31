@@ -3,25 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커 - 자동 저장 시스템</title>
+    <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; overflow-x: hidden; touch-action: manipulation; }
         #game-container { width: 100%; max-width: 450px; margin: auto; background: #2a2a2a; padding: 15px; border-radius: 20px; }
-        .click-pad { background: #333; margin: 15px auto; width: 250px; height: 250px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; touch-action: none; }
+        
+        /* 클릭 영역 개선 */
+        .click-pad { background: #333; margin: 15px auto; width: 250px; height: 250px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; }
         .click-pad:active { transform: scale(0.9); background: #444; }
-        #click-target { width: 160px; height: 160px; pointer-events: none; border-radius: 15px; }
+        
+        /* 이미지 로딩 실패 시 대비 */
+        #click-target { width: 160px; height: 160px; border-radius: 15px; object-fit: cover; background: #000; display: block; }
+        
         .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         .fever-txt { color: #ff4757; font-weight: bold; height: 30px; visibility: hidden; font-size: 1.2em; }
         button { width: 100%; padding: 16px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 2px solid #555; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.4; }
         input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; }
+
         #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
         #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
         #rank-table th { background: #00ff88; color: #000; }
-        .status-msg { font-size: 11px; color: #aaa; margin: 5px 0; }
-        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 10px; }
-        #helper-list img { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #00ff88; }
+        
+        /* 도우미 리스트 스타일 */
+        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; min-height: 40px; }
+        .helper-img { width: 40px !important; height: 40px !important; border-radius: 50%; border: 2px solid #00ff88; object-fit: cover; background: #444; }
     </style>
 </head>
 <body>
@@ -31,8 +38,7 @@
     
     <div id="setup">
         <input type="text" id="username" placeholder="닉네임 입력">
-        <button onclick="startGame()">게임 시작 / 불러오기</button>
-        <p style="font-size: 12px; color: #888;">기존에 하던 기기라면 자동으로 이어집니다.</p>
+        <button onclick="startGame()">게임 시작</button>
     </div>
 
     <div id="play-area" style="display:none;">
@@ -40,12 +46,11 @@
         <div id="fever-indicator" class="fever-txt">🔥 FEVER TIME 🔥</div>
 
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="https://drive.google.com/thumbnail?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf" alt="클릭">
+            <img id="click-target" src="https://docs.google.com/uc?export=view&id=1yftP1Ph400vovYQfy6cZ_eteguZrOxf" alt="CLICK">
         </div>
         
         <div>
             <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-            <p id="save-status" class="status-msg">게임 진행 중...</p>
             <div id="helper-list"></div>
         </div>
 
@@ -54,7 +59,6 @@
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
             <tbody id="rank-body"></tbody>
         </table>
-        <button onclick="resetData()" style="background:#800; margin-top:20px; padding:10px; font-size:12px;">진행 데이터 초기화</button>
     </div>
 </div>
 
@@ -62,6 +66,12 @@
 
 <script>
     const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; 
+    
+    // 이미지 주소 변수화 (수정하기 쉽게)
+    const IMG_NORMAL = "https://docs.google.com/uc?export=view&id=1yftP1Ph400vovYQfy6cZ_eteguZrOxf";
+    const IMG_CLICK = "https://docs.google.com/uc?export=view&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
+    const IMG_HELPER = "https://docs.google.com/uc?export=view&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
+
     let score = 0;
     let isFever = false;
     let myName = "";
@@ -78,62 +88,43 @@
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    // [기기 저장] 데이터 로컬에 저장
-    function saveToDevice() {
-        const gameData = {
-            score: score,
-            helpers: helpers,
-            name: myName
-        };
-        localStorage.setItem('blackClickerData', JSON.stringify(gameData));
-    }
-
-    // [기기 불러오기]
-    function loadFromDevice() {
-        const savedData = localStorage.getItem('blackClickerData');
-        if (savedData) {
-            const data = JSON.parse(savedData);
-            score = data.score || 0;
-            helpers = data.helpers || 0;
-            document.getElementById('username').value = data.name || "";
-            
-            // 저장된 도우미 수만큼 자동 점수 루프 실행
-            for(let i=0; i < helpers; i++) {
-                addHelperVisual();
-                startHelperInterval();
-            }
-            updateUI();
-        }
-    }
-
     async function startGame() {
         myName = document.getElementById('username').value.trim();
         if(!myName) return alert("닉네임을 입력해주세요!");
-        
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
         document.getElementById('display-name').innerText = myName;
         
         document.getElementById('bgm').play().catch(()=>{});
         
+        // 터치 이벤트
         const pad = document.getElementById('main-pad');
         pad.addEventListener('touchstart', (e) => { e.preventDefault(); handleImageClick(); });
+        
+        // 기기 저장 데이터 불러오기
+        const saved = localStorage.getItem('blackClickerData');
+        if(saved) {
+            const data = JSON.parse(saved);
+            score = data.score || 0;
+            helpers = data.helpers || 0;
+            for(let i=0; i<helpers; i++) { addHelperVisual(); startHelperInterval(); }
+            updateUI();
+        }
 
         await loadRanking();
         startFeverTimer();
-        setInterval(() => { uploadScore(); saveToDevice(); }, 30000); // 30초마다 서버+기기 동시 저장
+        setInterval(() => { uploadScore(); localStorage.setItem('blackClickerData', JSON.stringify({score, helpers, name: myName})); }, 15000);
     }
 
     function handleImageClick() {
         beep(isFever ? 700 : 400);
         const img = document.getElementById('click-target');
-        img.src = "https://drive.google.com/thumbnail?id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
+        img.src = IMG_CLICK;
         
         score += isFever ? 10 : 5;
         updateUI();
-        saveToDevice(); // 클릭할 때마다 기기에 임시 저장
 
-        setTimeout(() => { img.src = "https://drive.google.com/thumbnail?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf"; }, 100);
+        setTimeout(() => { img.src = IMG_NORMAL; }, 100);
     }
 
     function updateUI() {
@@ -155,7 +146,6 @@
 
     async function uploadScore() {
         try {
-            document.getElementById('save-status').innerText = "자동 저장 중...";
             const res = await fetch(API_URL);
             let data = await res.json();
             const userIndex = data.findIndex(u => u.name === myName);
@@ -163,7 +153,6 @@
             else { data.push({ name: myName, score: score }); }
             await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
             await loadRanking();
-            document.getElementById('save-status').innerText = "모든 데이터 동기화 완료";
         } catch(e) {}
     }
 
@@ -187,30 +176,21 @@
             addHelperVisual();
             startHelperInterval();
             updateUI();
-            saveToDevice();
-            uploadScore();
         }
     }
 
     function addHelperVisual() {
         const hImg = document.createElement('img');
-        hImg.src = "https://drive.google.com/thumbnail?id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
+        hImg.src = IMG_HELPER;
+        hImg.className = "helper-img";
+        // 이미지가 안 뜰 경우를 대비한 대체 아이콘
+        hImg.alt = "👤";
         document.getElementById('helper-list').appendChild(hImg);
     }
 
     function startHelperInterval() {
         setInterval(() => { score += 2; updateUI(); }, 1000);
     }
-
-    function resetData() {
-        if(confirm("모든 점수와 도우미가 사라집니다. 초기화할까요?")) {
-            localStorage.removeItem('blackClickerData');
-            location.reload();
-        }
-    }
-
-    // 페이지 로드 시 기기 데이터 불러오기
-    window.onload = loadFromDevice;
 </script>
 </body>
 </html>
