@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>블랙 클릭커</title>
+    <style>
+        body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: #ffffff; margin: 0; padding: 20px; }
+        #game-container { max-width: 500px; margin: auto; background: #2a2a2a; padding: 20px; border-radius: 10px; }
+        
+        /* 안내 문구 */
+        .guide { background: #333; padding: 10px; border-radius: 5px; font-size: 14px; text-align: left; margin-bottom: 20px; border-left: 4px solid #555; }
+        
+        /* 메인 이미지 */
+        #click-target { width: 200px; height: 200px; cursor: pointer; border: 2px solid #444; border-radius: 10px; margin: 20px 0; }
+        
+        /* 상태 표시 */
+        .fever-txt { color: #ff0000; font-weight: bold; height: 24px; visibility: hidden; }
+        .score-box { font-size: 24px; margin: 10px 0; }
+        
+        /* 상점 */
+        button { padding: 10px 20px; cursor: pointer; background: #444; color: #fff; border: 1px solid #666; border-radius: 5px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #helper-list img { width: 40px; height: 40px; margin: 5px; border: 1px solid #777; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>블랙 클릭커</h1>
+
+    <div class="guide">
+        - 클릭 시 5점 획득 (피버 타임 시 10점)<br>
+        - 10초 대기 후 5초간 피버 타임 발생<br>
+        - 도우미(200점): 1초당 2점 자동 획득
+    </div>
+
+    <div id="setup">
+        <input type="text" id="username" placeholder="이름을 입력하세요">
+        <button onclick="startGame()">시작</button>
+    </div>
+
+    <div id="play-area" style="display:none;">
+        <div class="score-box">
+            <span id="display-name"></span>: <span id="score">0</span>점
+        </div>
+        
+        <div id="fever-indicator" class="fever-txt">피버 타임 발생! (점수 2배)</div>
+
+        <img id="click-target" src="https://drive.google.com/thumbnail?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf" onclick="handleImageClick()">
+
+        <div style="margin-top: 20px;">
+            <button id="buy-btn" onclick="buyHelper()" disabled>도우미 구입 (200점)</button>
+            <p>보유 도우미: <span id="helper-count">0</span> (초당 +<span id="auto-score">0</span>점)</p>
+            <div id="helper-list"></div>
+        </div>
+    </div>
+</div>
+
+<audio id="bgm" loop>
+    <source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg">
+</audio>
+
+<script>
+    let score = 0;
+    let isFever = false;
+    let helperCount = 0;
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // 효과음 함수
+    function beep(freq) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function startGame() {
+        const name = document.getElementById('username').value;
+        if(!name) return alert("이름을 입력해주세요.");
+        
+        document.getElementById('display-name').innerText = name;
+        document.getElementById('setup').style.display = 'none';
+        document.getElementById('play-area').style.display = 'block';
+        
+        document.getElementById('bgm').play();
+        startFeverTimer();
+    }
+
+    function handleImageClick() {
+        beep(isFever ? 800 : 400);
+        const img = document.getElementById('click-target');
+        img.src = "https://drive.google.com/thumbnail?id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E";
+
+        setTimeout(() => {
+            score += isFever ? 10 : 5;
+            document.getElementById('score').innerText = score;
+            img.src = "https://drive.google.com/thumbnail?id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf";
+            checkBalance();
+        }, 1000);
+    }
+
+    function startFeverTimer() {
+        setInterval(() => {
+            isFever = true;
+            document.getElementById('fever-indicator').style.visibility = 'visible';
+            setTimeout(() => {
+                isFever = false;
+                document.getElementById('fever-indicator').style.visibility = 'hidden';
+            }, 5000);
+        }, 15000);
+    }
+
+    function buyHelper() {
+        if(score >= 200) {
+            score -= 200;
+            helperCount++;
+            beep(200);
+            
+            const hImg = document.createElement('img');
+            hImg.src = "https://drive.google.com/thumbnail?id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V";
+            document.getElementById('helper-list').appendChild(hImg);
+            
+            setInterval(() => {
+                score += 2;
+                document.getElementById('score').innerText = score;
+                checkBalance();
+            }, 1000);
+            
+            document.getElementById('helper-count').innerText = helperCount;
+            document.getElementById('auto-score').innerText = helperCount * 2;
+            checkBalance();
+        }
+    }
+
+    function checkBalance() {
+        document.getElementById('buy-btn').disabled = (score < 200);
+    }
+</script>
+
+</body>
+</html>
