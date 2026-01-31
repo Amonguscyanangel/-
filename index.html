@@ -11,8 +11,8 @@
         
         /* 메인 클릭 패드 */
         .click-pad { background: #333; margin: 15px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; position: relative; overflow: hidden; }
-        .click-pad:active { transform: scale(0.95); border-color: #00ff88; }
-        #click-target { width: 170px; height: 170px; object-fit: contain; pointer-events: none; }
+        .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
+        #click-target { width: 170px; height: 170px; object-fit: contain; pointer-events: none; transition: transform 0.05s; }
         
         .score-box { font-size: 28px; font-weight: bold; margin: 10px 0; color: #00ff88; }
         button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
@@ -20,17 +20,18 @@
         
         input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: none; text-align: center; background: #333; color: white; border: 1px solid #555; }
 
-        /* 랭킹 테이블 */
-        #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; border-radius: 10px; overflow: hidden; }
+        /* 랭킹 테이블 및 버튼 */
+        #rank-table { width: 100%; margin-top: 10px; border-collapse: collapse; background: #111; font-size: 13px; border-radius: 10px; overflow: hidden; }
         #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
         #rank-table th { background: #333; color: #00ff88; }
+        .rank-toggle-btn { background: #222; color: #aaa; font-size: 12px; padding: 8px; margin-top: 10px; width: auto; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <div id="setup-area">
-        <h2>블랙 클릭커</h2>
+        <h2 style="color:#00ff88;">BLACK CLICKER</h2>
         <input type="text" id="username" placeholder="닉네임 입력">
         <button onclick="entryGame()">데이터 불러오기 & 시작</button>
     </div>
@@ -40,12 +41,13 @@
         <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:20px; font-size:14px;">🔥 피버 타임 (3배!) 🔥</div>
         
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="준비 완료">
+            <img id="click-target" src="" alt="로딩 중...">
         </div>
         
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-top: 10px;"></div>
+        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-top: 10px; min-height: 40px;"></div>
 
+        <button class="rank-toggle-btn" onclick="toggleRanking()" id="toggle-btn">전체 랭킹 보기 ▼</button>
         <table id="rank-table">
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
             <tbody id="rank-body"></tbody>
@@ -54,18 +56,17 @@
 </div>
 
 <script>
-    // 1. [핵심] 사용자가 준 PNG 이미지의 Base64 데이터를 아래에 넣으세요.
-    // "data:image/png;base64,..." 형태의 긴 코드를 여기에 붙여넣으면 파일 없이도 이미지가 뜹니다.
+    // 이미지 설정
     const IMG_CLICK_DATA = "https://media.discordapp.net/attachments/975684061781700671/1467281375882121236/black.png?ex=697fcfc4&is=697e7e44&hm=ea81982cfd686e4897d6e3c65978b239815233f00aa9db5a8e68185112b87c58&=&format=webp&quality=lossless&width=968&height=968"; 
-    
-    // 나머지 이미지 링크 (파일이 폴더에 있어야 함)
     const IMG_NORMAL = "black3.gif"; 
     const IMG_HELPER = "black2.jpg"; 
-    
-    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
-    let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
 
-    // 기기 저장 데이터 로드
+    // 미리 로드해서 클릭 렉 방지
+    const preload = new Image(); preload.src = IMG_CLICK_DATA;
+
+    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
+    let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null, showAllRank = false;
+
     window.onload = () => {
         const saved = localStorage.getItem('blackClicker_storage_v14');
         if (saved) {
@@ -91,7 +92,7 @@
         }
         updateUI();
         loadRanking();
-        setInterval(saveData, 5000); // 5초마다 기기 저장 및 랭킹 전송
+        setInterval(saveData, 5000);
     }
 
     function handleImageClick(e) {
@@ -100,13 +101,22 @@
         score += isFever ? 15 : 5;
         updateUI();
 
-        // 클릭 시 PNG 데이터를 직접 소스로 사용
+        // 즉시 이미지 교체
         img.src = IMG_CLICK_DATA;
+        img.style.transform = "scale(1.1)";
         
         if (restoreTimer) clearTimeout(restoreTimer);
+        // 40ms 후 복귀 (초고속)
         restoreTimer = setTimeout(() => {
-            img.src = IMG_NORMAL + "?t=" + Date.now();
-        }, 100); 
+            img.src = IMG_NORMAL;
+            img.style.transform = "scale(1)";
+        }, 40); 
+    }
+
+    function toggleRanking() {
+        showAllRank = !showAllRank;
+        document.getElementById('toggle-btn').innerText = showAllRank ? "랭킹 접기 ▲" : "전체 랭킹 보기 ▼";
+        loadRanking();
     }
 
     function saveData() {
@@ -136,14 +146,19 @@
             const data = await res.json();
             const tbody = document.getElementById('rank-body');
             tbody.innerHTML = "";
-            data.sort((a,b)=>b.score-a.score).slice(0, 5).forEach((u, i) => {
+            
+            const sorted = data.sort((a,b)=>b.score-a.score);
+            // 버튼 상태에 따라 5위까지 혹은 10위까지 표시
+            const displayList = showAllRank ? sorted.slice(0, 10) : sorted.slice(0, 5);
+            
+            displayList.forEach((u, i) => {
                 tbody.innerHTML += `<tr><td>${i+1}</td><td>${u.name}</td><td>${u.score}</td></tr>`;
             });
         } catch(e) {}
     }
 
     function updateUI() {
-        document.getElementById('score').innerText = Math.floor(score);
+        document.getElementById('score').innerText = Math.floor(score).toLocaleString();
         document.getElementById('buy-btn').disabled = (score < 200);
     }
 
@@ -179,6 +194,3 @@
 </script>
 </body>
 </html>
-
-
-
