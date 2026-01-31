@@ -6,25 +6,25 @@
     <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
-        body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; height: 100vh; display: flex; align-items: center; justify-content: center; }
         #game-container { width: 100%; max-width: 450px; background: #2a2a2a; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
+        /* 로딩 레이어 */
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #00ff88; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #00ff88; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .click-pad { background: #333; margin: 15px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; overflow: hidden; }
-        .click-pad:active { transform: scale(0.92); }
-        #click-target { width: 160px; height: 160px; object-fit: contain; pointer-events: none; }
+        .click-pad { background: #333; margin: 15px auto; width: 240px; height: 240px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; position: relative; overflow: hidden; transition: 0.1s; }
+        .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
+        #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; display: block; }
         
-        .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
-        button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
+        .score-box { font-size: 28px; font-weight: bold; margin: 10px 0; color: #00ff88; }
+        button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 10px; }
         button:disabled { opacity: 0.3; }
         
-        #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; border-radius: 10px; overflow: hidden; }
-        #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
-        #rank-table th { background: #333; color: #00ff88; }
-
+        #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
+        #rank-table th, #rank-table td { padding: 8px; border: 1px solid #222; }
+        
         .helper-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid #00ff88; margin: 2px; }
     </style>
 </head>
@@ -32,7 +32,7 @@
 
 <div id="loading-overlay">
     <div class="spinner"></div>
-    <div id="load-text">데이터 동기화 중... (0%)</div>
+    <div id="load-text">서버에서 이미지를 강제로 끌어오는 중...</div>
 </div>
 
 <div id="game-container" style="display:none;">
@@ -44,15 +44,16 @@
 
     <div id="play-area" style="display:none;">
         <div class="score-box"><span id="score">0</span>점</div>
-        <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:20px; font-size:14px;">🔥 FEVER TIME 🔥</div>
+        <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:25px;">🔥 FEVER TIME 🔥</div>
         
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="">
+            <img id="click-target" src="" alt="이미지 로딩 중...">
         </div>
         
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap;"></div>
+        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-bottom: 10px;"></div>
 
+        <h3>🏆 실시간 랭킹</h3>
         <table id="rank-table">
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
             <tbody id="rank-body"></tbody>
@@ -61,53 +62,57 @@
 </div>
 
 <script>
-    // 구글 드라이브 보안 우회 경로 (uc?export=view&id=...)
+    // 구글 드라이브 CORS 우회를 위한 직접 호출 방식
     const IMG_NORMAL = "black3.gif"; 
-    const IMG_CLICK = "https://docs.google.com/uc?export=view&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; 
+    const IMG_CLICK = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; 
     const IMG_HELPER = "black2.jpg"; 
     const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
 
     let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
 
-    // 1. 즉시 로딩 시스템
-    (function init() {
+    // 이미지 프리로딩 및 에러 처리
+    async function initLoading() {
         const srcList = [IMG_NORMAL, IMG_CLICK, IMG_HELPER];
         let loaded = 0;
 
-        const saved = localStorage.getItem('blackClicker_final_v12');
+        // 기기 저장 데이터 복구 (v13)
+        const saved = localStorage.getItem('blackClicker_v13');
         if (saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
             helpersCount = data.helpersCount || 0;
-            myName = data.myName || "";
+            myName = data.name || "";
         }
 
-        srcList.forEach(src => {
-            const img = new Image();
-            img.src = src;
-            img.onload = () => {
-                loaded++;
-                document.getElementById('load-text').innerText = `리소스 준비 중... (${Math.floor((loaded/srcList.length)*100)}%)`;
-                if(loaded === srcList.length) finishLoading();
-            };
-            img.onerror = () => { loaded++; if(loaded === srcList.length) finishLoading(); };
+        const promises = srcList.map(src => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => resolve(true);
+                img.onerror = () => {
+                    console.warn(src + " 로드 실패. 대체 경로 시도.");
+                    resolve(false);
+                };
+            });
         });
-    })();
+
+        await Promise.all(promises);
+        finishLoading();
+    }
 
     function finishLoading() {
-        setTimeout(() => {
-            document.getElementById('loading-overlay').style.display = 'none';
-            document.getElementById('game-container').style.display = 'block';
-            if (myName) {
-                document.getElementById('username').value = myName;
-                entryGame();
-            }
-        }, 600);
+        document.getElementById('loading-overlay').style.display = 'none';
+        document.getElementById('game-container').style.display = 'block';
+        if (myName) {
+            document.getElementById('username').value = myName;
+            entryGame();
+        }
     }
 
     function entryGame() {
         myName = document.getElementById('username').value.trim();
         if(!myName) return alert("닉네임을 입력하세요!");
+        
         document.getElementById('setup-area').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
         document.getElementById('click-target').src = IMG_NORMAL;
@@ -118,7 +123,7 @@
         }
         updateUI();
         loadRanking();
-        setInterval(saveAndUpload, 10000);
+        setInterval(saveData, 5000);
     }
 
     function handleImageClick(e) {
@@ -127,15 +132,15 @@
         score += isFever ? 15 : 5;
         updateUI();
 
-        img.src = IMG_CLICK; // 클릭 시 black1.webp
+        img.src = IMG_CLICK;
         if (restoreTimer) clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => {
             img.src = IMG_NORMAL + "?t=" + Date.now();
         }, 120); 
     }
 
-    function saveAndUpload() {
-        localStorage.setItem('blackClicker_final_v12', JSON.stringify({ score, helpersCount, myName }));
+    function saveData() {
+        localStorage.setItem('blackClicker_v13', JSON.stringify({ score, helpersCount, name: myName }));
         uploadScore();
     }
 
@@ -191,6 +196,8 @@
     }
 
     document.getElementById('main-pad').addEventListener('pointerdown', handleImageClick);
+    initLoading();
+
     setInterval(() => {
         isFever = true;
         document.getElementById('fever-indicator').style.visibility = 'visible';
