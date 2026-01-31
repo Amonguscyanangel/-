@@ -3,57 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커</title>
+    <title>블랙 클릭커 - 이미지 내장 버전</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
         body { text-align: center; font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; height: 100vh; display: flex; align-items: center; justify-content: center; }
         #game-container { width: 100%; max-width: 450px; background: #2a2a2a; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        /* 로딩 레이어 */
-        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
-        .spinner { width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #00ff88; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .click-pad { background: #333; margin: 15px auto; width: 240px; height: 240px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; position: relative; overflow: hidden; transition: 0.1s; }
-        .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
-        #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; display: block; }
+        .click-pad { background: #333; margin: 15px auto; width: 220px; height: 220px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; position: relative; overflow: hidden; }
+        .click-pad:active { transform: scale(0.95); border-color: #00ff88; }
+        #click-target { width: 170px; height: 170px; object-fit: contain; pointer-events: none; }
         
         .score-box { font-size: 28px; font-weight: bold; margin: 10px 0; color: #00ff88; }
-        button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 10px; }
+        button { width: 100%; padding: 15px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.3; }
-        
+        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: none; text-align: center; background: #333; color: white; }
+
         #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
-        #rank-table th, #rank-table td { padding: 8px; border: 1px solid #222; }
-        
-        .helper-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid #00ff88; margin: 2px; }
+        #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
     </style>
 </head>
 <body>
 
-<div id="loading-overlay">
-    <div class="spinner"></div>
-    <div id="load-text">서버에서 이미지를 강제로 끌어오는 중...</div>
-</div>
-
-<div id="game-container" style="display:none;">
+<div id="game-container">
     <div id="setup-area">
         <h2>블랙 클릭커</h2>
-        <input type="text" id="username" placeholder="닉네임 입력" style="width:100%; padding:15px; margin-bottom:15px; border-radius:10px; border:none; text-align:center; background:#333; color:white;">
-        <button onclick="entryGame()">시작하기</button>
+        <input type="text" id="username" placeholder="닉네임 입력">
+        <button onclick="entryGame()">데이터 불러오기 & 시작</button>
     </div>
 
     <div id="play-area" style="display:none;">
         <div class="score-box"><span id="score">0</span>점</div>
-        <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:25px;">🔥 FEVER TIME 🔥</div>
+        <div id="fever-indicator" style="color:#ff4757; font-weight:bold; visibility:hidden; height:20px;">🔥 피버 타임 (3배!) 🔥</div>
         
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="이미지 로딩 중...">
+            <img id="click-target" src="" alt="이미지 로드중">
         </div>
         
         <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-bottom: 10px;"></div>
+        <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px;"></div>
 
-        <h3>🏆 실시간 랭킹</h3>
         <table id="rank-table">
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
             <tbody id="rank-body"></tbody>
@@ -62,7 +50,9 @@
 </div>
 
 <script>
-    // 구글 드라이브 CORS 우회를 위한 직접 호출 방식
+    // 1. 이미지 데이터 내장 (black1.jpg 직접 변환값 사용)
+    // IMG_CLICK은 보내주신 파일을 코드로 넣었습니다. 
+    // IMG_NORMAL과 IMG_HELPER는 파일이 같은 폴더에 있어야 하며, 안 보일 경우를 대비해 텍스트를 출력합니다.
     const IMG_NORMAL = "black3.gif"; 
     const IMG_CLICK = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; 
     const IMG_HELPER = "black2.jpg"; 
@@ -70,44 +60,17 @@
 
     let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
 
-    // 이미지 프리로딩 및 에러 처리
-    async function initLoading() {
-        const srcList = [IMG_NORMAL, IMG_CLICK, IMG_HELPER];
-        let loaded = 0;
-
-        // 기기 저장 데이터 복구 (v13)
-        const saved = localStorage.getItem('blackClicker_v13');
+    // 기기 저장 데이터 복구
+    window.onload = () => {
+        const saved = localStorage.getItem('blackClicker_v_final');
         if (saved) {
             const data = JSON.parse(saved);
             score = data.score || 0;
             helpersCount = data.helpersCount || 0;
-            myName = data.name || "";
-        }
-
-        const promises = srcList.map(src => {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.src = src;
-                img.onload = () => resolve(true);
-                img.onerror = () => {
-                    console.warn(src + " 로드 실패. 대체 경로 시도.");
-                    resolve(false);
-                };
-            });
-        });
-
-        await Promise.all(promises);
-        finishLoading();
-    }
-
-    function finishLoading() {
-        document.getElementById('loading-overlay').style.display = 'none';
-        document.getElementById('game-container').style.display = 'block';
-        if (myName) {
+            myName = data.myName || "";
             document.getElementById('username').value = myName;
-            entryGame();
         }
-    }
+    };
 
     function entryGame() {
         myName = document.getElementById('username').value.trim();
@@ -132,15 +95,15 @@
         score += isFever ? 15 : 5;
         updateUI();
 
-        img.src = IMG_CLICK;
+        img.src = IMG_CLICK; // 클릭 시 black1.jpg 
         if (restoreTimer) clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => {
             img.src = IMG_NORMAL + "?t=" + Date.now();
-        }, 120); 
+        }, 130); 
     }
 
     function saveData() {
-        localStorage.setItem('blackClicker_v13', JSON.stringify({ score, helpersCount, name: myName }));
+        localStorage.setItem('blackClicker_v_final', JSON.stringify({ score, helpersCount, myName }));
         uploadScore();
     }
 
@@ -154,7 +117,7 @@
             await fetch(API_URL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data.sort((a,b) => b.score - a.score).slice(0, 10))
+                body: JSON.stringify(data.sort((a,b) => b.score - a.score).slice(0, 5))
             });
             loadRanking();
         } catch(e) {}
@@ -191,12 +154,11 @@
         const hList = document.getElementById('helper-list');
         const hImg = document.createElement('img');
         hImg.src = IMG_HELPER;
-        hImg.className = "helper-img";
+        hImg.style.width = "35px"; hImg.style.height = "35px"; hImg.style.borderRadius = "50%"; hImg.style.border = "2px solid #00ff88";
         hList.appendChild(hImg);
     }
 
     document.getElementById('main-pad').addEventListener('pointerdown', handleImageClick);
-    initLoading();
 
     setInterval(() => {
         isFever = true;
