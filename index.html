@@ -3,58 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>블랙 클릭커 최적화 버전</title>
+    <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
-        body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; overflow-x: hidden; touch-action: manipulation; }
+        body { text-align: center; font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; touch-action: manipulation; }
         #game-container { width: 100%; max-width: 450px; margin: auto; background: #2a2a2a; padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        .click-pad { background: #333; margin: 15px auto; width: 260px; height: 260px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: transform 0.05s; overflow: hidden; }
-        .click-pad:active { transform: scale(0.92); background: #444; }
+        /* 이미지 영역 최적화 */
+        .click-pad { background: #333; margin: 15px auto; width: 260px; height: 260px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 5px solid #444; transition: 0.05s; overflow: hidden; }
+        .click-pad:active { transform: scale(0.94); }
         
-        #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; }
+        /* 이미지 로딩 전까지 공간 확보 */
+        #click-target { width: 180px; height: 180px; object-fit: contain; pointer-events: none; min-height: 100px; }
         
         .score-box { font-size: 26px; font-weight: bold; margin: 10px 0; color: #00ff88; }
-        .fever-txt { color: #ff4757; font-weight: bold; height: 30px; visibility: hidden; font-size: 1.2em; }
-        
         button { width: 100%; padding: 16px; font-size: 16px; cursor: pointer; background: #444; color: #fff; border: 2px solid #555; border-radius: 12px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.4; }
-        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; background: #eee; }
+        input { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: none; margin-bottom: 15px; text-align: center; }
 
         #rank-table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #111; font-size: 13px; }
         #rank-table th, #rank-table td { padding: 10px; border: 1px solid #222; }
-        #rank-table th { background: #00ff88; color: #000; }
         
-        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; min-height: 40px; }
-        .helper-img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; object-fit: cover; background: #444; }
-        .status-msg { font-size: 11px; color: #888; margin: 5px 0; }
+        #helper-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; }
+        .helper-img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #00ff88; object-fit: cover; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <h1>블랙 클릭커</h1>
-    
     <div id="setup">
         <input type="text" id="username" placeholder="닉네임 입력">
-        <button onclick="startGame()">게임 시작 / 불러오기</button>
+        <button onclick="startGame()">게임 시작</button>
     </div>
 
     <div id="play-area" style="display:none;">
         <div class="score-box"><span id="display-name"></span>: <span id="score">0</span>점</div>
-        <div id="fever-indicator" class="fever-txt">🔥 FEVER TIME 🔥</div>
+        <div id="fever-indicator" style="color:red; font-weight:bold; visibility:hidden; height:20px;">🔥 피버 타임! 🔥</div>
 
         <div class="click-pad" id="main-pad">
-            <img id="click-target" src="" alt="준비 중...">
+            <img id="click-target" src="black3.gif" alt="이미지 로딩 중...">
         </div>
         
-        <div>
-            <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
-            <p id="save-status" class="status-msg">동기화 대기 중...</p>
-            <div id="helper-list"></div>
-        </div>
+        <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
+        <div id="helper-list"></div>
 
-        <h3>🏆 실시간 랭킹</h3>
         <table id="rank-table">
             <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
             <tbody id="rank-body"></tbody>
@@ -62,102 +55,74 @@
     </div>
 </div>
 
-<audio id="bgm" loop>
-    <source src="https://docs.google.com/uc?export=download&id=1XZF9G_X-X4E3PNT0OGjSti-Bb8WInW66" type="audio/mpeg">
-</audio>
-
 <script>
-    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; 
-    
-    // 최적화된 직접 다운로드 경로 (export=download 사용)
-    const IMG_NORMAL = "https://docs.google.com/uc?export=download&id=1nthPZ7Oc7SoerxJ9Erno_Zd_5JJSem-E"; // 기본 (움짤)
-    const IMG_CLICK = "https://docs.google.com/uc?export=download&id=1yftP1Ph400vovYQfy6cZJ_eteguZrOxf";  // 클릭 (인형)
-    const IMG_HELPER = "https://docs.google.com/uc?export=download&id=1uyEPyTO7XKd5-Erpc_pVZpPLm94h_I4V"; // 도우미 (만두)
+    // 드라이브 링크가 안 뜰 경우를 대비해 로컬 파일명을 기본값으로 사용
+    const IMG_NORMAL = "black3.gif"; // 기본 움짤
+    const IMG_CLICK = "black1.jpg";  // 클릭 시 인형
+    const IMG_HELPER = "black2.jpg"; // 도우미
 
-    let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let score = 0, helpers = 0, myName = "", isFever = false, restoreTimer = null;
 
-    // [최적화] 이미지 프리로딩 함수
-    function preloadImages() {
-        [IMG_NORMAL, IMG_CLICK, IMG_HELPER].forEach(src => {
-            const img = new Image();
-            img.src = src;
-        });
-    }
-    preloadImages();
+    // 데이터 복구
+    window.onload = () => {
+        const saved = localStorage.getItem('blackClicker_vFINAL');
+        if(saved) {
+            const data = JSON.parse(saved);
+            score = data.score || 0;
+            helpers = data.helpers || 0;
+            if(data.name) document.getElementById('username').value = data.name;
+        }
+    };
 
-    function beep(freq) {
-        if(audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    }
-
-    async function startGame() {
+    function startGame() {
         myName = document.getElementById('username').value.trim();
-        if(!myName) return alert("닉네임을 입력해주세요!");
+        if(!myName) return alert("이름을 입력하세요");
         
         document.getElementById('setup').style.display = 'none';
         document.getElementById('play-area').style.display = 'block';
         document.getElementById('display-name').innerText = myName;
-        document.getElementById('click-target').src = IMG_NORMAL;
         
-        const bgm = document.getElementById('bgm');
-        bgm.volume = 0.4;
-        bgm.play().catch(()=>{});
-
-        // 데이터 복구
-        const saved = localStorage.getItem('blackClicker_v5');
-        if(saved) {
-            const data = JSON.parse(saved);
-            score = data.score || 0;
-            const hCount = data.helpers || 0;
-            for(let i=0; i<hCount; i++) {
-                helpersCount++;
-                addHelperVisual();
-                startHelperInterval();
-            }
-            updateUI();
-        }
+        // 초기 이미지 강제 로드
+        const target = document.getElementById('click-target');
+        target.src = IMG_NORMAL;
+        
+        // 이미지 로드 실패 시 대체 처리
+        target.onerror = function() {
+            console.error("이미지를 불러올 수 없어 로컬 경로로 시도합니다.");
+            this.alt = "이미지 파일 확인 필요";
+        };
 
         const pad = document.getElementById('main-pad');
-        pad.addEventListener('pointerdown', (e) => { 
-            e.preventDefault(); 
-            handleImageClick(); 
-        });
+        pad.addEventListener('pointerdown', handleImageClick);
 
-        loadRanking();
+        setInterval(feverCycle, 15000);
         setInterval(() => {
-            isFever = true;
-            document.getElementById('fever-indicator').style.visibility = 'visible';
-            setTimeout(() => {
-                isFever = false;
-                document.getElementById('fever-indicator').style.visibility = 'hidden';
-            }, 5000);
-        }, 15000);
-        
-        setInterval(() => { 
-            uploadScore(); 
-            localStorage.setItem('blackClicker_v5', JSON.stringify({score, helpers: helpersCount, name: myName})); 
-        }, 10000);
+            localStorage.setItem('blackClicker_vFINAL', JSON.stringify({score, helpers, name: myName}));
+        }, 5000);
+
+        // 저장된 도우미 비주얼 복구
+        for(let i=0; i<helpers; i++) {
+            addHelperVisual();
+            setInterval(() => { score += 2; updateUI(); }, 1000);
+        }
+        updateUI();
     }
 
-    function handleImageClick() {
-        beep(isFever ? 650 : 400);
+    function handleImageClick(e) {
+        if(e) e.preventDefault();
         const img = document.getElementById('click-target');
         
-        img.src = IMG_CLICK; // 클릭 시 인형
         score += isFever ? 10 : 5;
         updateUI();
 
+        // 클릭 이미지로 교체
+        img.src = IMG_CLICK;
+
         if (restoreTimer) clearTimeout(restoreTimer);
-        restoreTimer = setTimeout(() => { 
-            // 원상복구 시 캐시를 방지하여 GIF가 멈추지 않게 함
-            img.src = IMG_NORMAL + "&t=" + Date.now(); 
-        }, 200);
+        restoreTimer = setTimeout(() => {
+            // 다시 움짤로 복구 (캐시 방지 파라미터 추가)
+            img.src = IMG_NORMAL + "?t=" + Date.now();
+        }, 150);
     }
 
     function updateUI() {
@@ -165,39 +130,12 @@
         document.getElementById('buy-btn').disabled = (score < 200);
     }
 
-    async function loadRanking() {
-        try {
-            const res = await fetch(API_URL);
-            const data = await res.json();
-            const tbody = document.getElementById('rank-body');
-            tbody.innerHTML = "";
-            data.sort((a, b) => b.score - a.score).slice(0, 5).forEach((item, index) => {
-                tbody.innerHTML += `<tr><td>${index+1}</td><td>${item.name}</td><td>${item.score}</td></tr>`;
-            });
-        } catch(e) {}
-    }
-
-    async function uploadScore() {
-        try {
-            document.getElementById('save-status').innerText = "저장 중...";
-            const res = await fetch(API_URL);
-            let data = await res.json();
-            const userIndex = data.findIndex(u => u.name === myName);
-            if(userIndex > -1) { data[userIndex].score = Math.max(data[userIndex].score, score); }
-            else { data.push({ name: myName, score: score }); }
-            await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            loadRanking();
-            document.getElementById('save-status').innerText = "자동 저장 완료";
-        } catch(e) {}
-    }
-
     function buyHelper() {
         if(score >= 200) {
             score -= 200;
-            helpersCount++;
-            beep(250);
+            helpers++;
             addHelperVisual();
-            startHelperInterval();
+            setInterval(() => { score += 2; updateUI(); }, 1000);
             updateUI();
         }
     }
@@ -210,8 +148,13 @@
         hList.appendChild(hImg);
     }
 
-    function startHelperInterval() {
-        setInterval(() => { score += 2; updateUI(); }, 1000);
+    function feverCycle() {
+        isFever = true;
+        document.getElementById('fever-indicator').style.visibility = 'visible';
+        setTimeout(() => {
+            isFever = false;
+            document.getElementById('fever-indicator').style.visibility = 'hidden';
+        }, 5000);
     }
 </script>
 </body>
