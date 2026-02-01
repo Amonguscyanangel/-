@@ -6,43 +6,20 @@
     <title>블랙 클릭커</title>
     <style>
         * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
-        body { 
-            background: #1a1a1a; color: white; margin: 0; padding: 0; 
-            font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; 
-        }
-
-        /* 점수 고정 레이아웃 */
-        #header-area { 
-            height: 15%; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: #222; border-bottom: 2px solid #00ff88; width: 100%; z-index: 10;
-        }
+        body { background: #1a1a1a; color: white; margin: 0; padding: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; }
+        #header-area { height: 15%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #222; border-bottom: 2px solid #00ff88; width: 100%; z-index: 10; }
         .score-box { font-size: 36px; font-weight: bold; color: #00ff88; }
         #fever-indicator { color: #ff4757; font-weight: bold; font-size: 14px; visibility: hidden; }
-
-        /* 클릭 영역 */
         #main-area { flex: 1; display: flex; justify-content: center; align-items: center; background: #1a1a1a; }
-        .click-pad { 
-            width: 220px; height: 220px; border-radius: 50%; background: #333;
-            display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; border: 6px solid #444; transition: transform 0.05s;
-        }
+        .click-pad { width: 220px; height: 220px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 6px solid #444; transition: transform 0.05s; }
         .click-pad:active { transform: scale(0.92); border-color: #00ff88; }
         #click-target { width: 170px; height: 170px; object-fit: contain; pointer-events: none; }
-
-        /* 하단 랭킹 패널 */
-        #footer-area { 
-            height: 45%; background: #2a2a2a; border-top-left-radius: 25px; border-top-right-radius: 25px;
-            padding: 15px; overflow-y: auto; box-shadow: 0 -10px 20px rgba(0,0,0,0.3);
-        }
-        
+        #footer-area { height: 45%; background: #2a2a2a; border-top-left-radius: 25px; border-top-right-radius: 25px; padding: 15px; overflow-y: auto; }
         button { width: 100%; padding: 12px; font-size: 15px; cursor: pointer; background: #444; color: #fff; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 8px; }
         button:disabled { opacity: 0.3; }
-        
-        .rank-section-title { font-size: 14px; color: #00ff88; margin: 10px 0; text-align: left; font-weight: bold; }
         #rank-table { width: 100%; border-collapse: collapse; background: #111; font-size: 13px; border-radius: 8px; }
         #rank-table th, #rank-table td { padding: 12px 8px; border-bottom: 1px solid #222; text-align: center; }
         #rank-table tr.my-rank { background: rgba(0, 255, 136, 0.2); color: #00ff88; font-weight: bold; }
-        
         #setup-area { position: fixed; inset: 0; background: #1a1a1a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 20px; }
         input { width: 250px; padding: 15px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #444; text-align: center; background: #222; color: white; }
     </style>
@@ -69,8 +46,7 @@
 <div id="footer-area" style="display:none;">
     <button id="buy-btn" onclick="buyHelper()" disabled>도우미 고용 (200점)</button>
     <div id="helper-list" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-bottom: 15px;"></div>
-    
-    <div class="rank-section-title">🏆 실시간 전체 랭킹 (전체 유저)</div>
+    <div style="font-size:12px; color:#00ff88; margin-bottom:5px;">🏆 실시간 랭킹 서바이벌</div>
     <table id="rank-table">
         <thead><tr><th>위</th><th>이름</th><th>점수</th></tr></thead>
         <tbody id="rank-body"></tbody>
@@ -81,11 +57,10 @@
     const IMG_CLICK_DATA = "https://media.discordapp.net/attachments/975684061781700671/1467281375882121236/black.png?ex=697fcfc4&is=697e7e44&hm=ea81982cfd686e4897d6e3c65978b239815233f00aa9db5a8e68185112b87c58&=&format=webp&quality=lossless&width=968&height=968"; 
     const IMG_NORMAL = "black3.gif"; 
     const IMG_HELPER = "black2.jpg"; 
-    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca"; // 공유 데이터베이스 주소
+    const API_URL = "https://api.npoint.io/b53e60ca0e85f87b7cca";
 
     let score = 0, helpersCount = 0, myName = "", isFever = false, restoreTimer = null;
 
-    // 데이터 복구
     window.onload = () => {
         const saved = localStorage.getItem('blackClicker_storage_v14');
         if (saved) {
@@ -113,9 +88,9 @@
         }
         updateUI();
         
-        // 실시간 로직: 2초마다 랭킹 갱신, 4초마다 내 점수 업로드
-        setInterval(loadRanking, 2000);
-        setInterval(saveData, 4000);
+        // [수정] 랭킹 로드 주기를 1.5초로 더 짧게 설정
+        setInterval(loadRanking, 1500);
+        setInterval(saveData, 3000);
         loadRanking();
     }
 
@@ -123,7 +98,6 @@
         if(e) e.preventDefault();
         score += isFever ? 15 : 5;
         updateUI();
-
         const img = document.getElementById('click-target');
         img.src = IMG_CLICK_DATA;
         if (restoreTimer) clearTimeout(restoreTimer);
@@ -137,38 +111,34 @@
 
     async function uploadScore() {
         try {
-            const res = await fetch(API_URL);
+            // 업로드 시에도 최신 데이터를 가져오기 위해 타임스탬프 추가
+            const res = await fetch(`${API_URL}?t=${Date.now()}`);
             let data = await res.json();
             if (!Array.isArray(data)) data = [];
             
             const idx = data.findIndex(u => u.name === myName);
-            if(idx > -1) {
-                data[idx].score = Math.max(data[idx].score, score);
-            } else {
-                data.push({name: myName, score: score});
-            }
-            
-            // [수정] 제한 없이 모든 데이터 저장 (너무 많아질 경우를 대비해 1000명으로 설정)
-            const sortedData = data.sort((a,b) => b.score - a.score).slice(0, 1000);
+            if(idx > -1) data[idx].score = Math.max(data[idx].score, score);
+            else data.push({name: myName, score: score});
             
             await fetch(API_URL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(sortedData)
+                body: JSON.stringify(data.sort((a,b) => b.score - a.score).slice(0, 100))
             });
         } catch(e) {}
     }
 
     async function loadRanking() {
         try {
-            const res = await fetch(API_URL);
+            // [핵심 수정] URL 뒤에 매번 바뀌는 시간값을 붙여 캐시를 강제 돌파합니다.
+            const res = await fetch(`${API_URL}?cache_bust=${Date.now()}`, {
+                cache: "no-store" // 브라우저에게 절대 저장하지 말라고 명령
+            });
             const data = await res.json();
             if (!Array.isArray(data)) return;
 
             const tbody = document.getElementById('rank-body');
             let html = "";
-            
-            // [수정] 정렬된 데이터 전체를 출력
             data.sort((a,b) => b.score - a.score).forEach((u, i) => {
                 const isMe = u.name === myName ? "class='my-rank'" : "";
                 html += `<tr ${isMe}><td>${i+1}</td><td>${u.name}</td><td>${Math.floor(u.score).toLocaleString()}</td></tr>`;
