@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>블랙 클리커</title>
+    <style>
+        /* 다크 테마 기본 적용 */
+        body { 
+            font-family: 'Malgun Gothic', sans-serif; 
+            text-align: center; 
+            background-color: #121212; 
+            color: #e0e0e0; 
+            margin: 0; 
+            padding: 10px; 
+            user-select: none; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        
+        .screen { 
+            display: none; 
+            width: 100%;
+            max-width: 450px; 
+            background: #1e1e1e; 
+            padding: 20px; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+            position: relative; 
+            min-height: 500px;
+            box-sizing: border-box;
+        }
+        
+        .active { display: block; }
+        
+        /* 폼 및 입력창 */
+        input { 
+            padding: 12px; 
+            font-size: 16px; 
+            width: 80%; 
+            margin-bottom: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #333; 
+            background-color: #2a2a2a; 
+            color: #fff; 
+        }
+        
+        button { 
+            padding: 12px 20px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 8px; 
+            background-color: #3f51b5; 
+            color: white; 
+            margin: 5px; 
+            transition: background-color 0.2s; 
+        }
+        
+        button:hover { background-color: #303f9f; }
+        button:disabled { background-color: #424242; color: #757575; cursor: default; }
+
+        /* 메인 화면 */
+        #character { 
+            width: 150px; 
+            height: 150px; 
+            cursor: pointer; 
+            transition: transform 0.1s; 
+            margin: 40px 0; 
+            display: inline-block; 
+            object-fit: contain;
+        }
+        
+        #character:active { transform: scale(0.9); }
+        
+        .side-buttons { 
+            position: absolute; 
+            right: 15px; 
+            top: 15px; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        #score-display { font-size: 24px; font-weight: bold; margin-top: 10px; color: #fff; }
+        
+        /* 플로팅 텍스트 애니메이션 */
+        .floating-text { 
+            position: absolute; 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #4caf50; 
+            animation: floatUp 1s ease-out forwards; 
+            pointer-events: none; 
+            text-shadow: 1px 1px 2px #000;
+        }
+        
+        @keyframes floatUp { 
+            0% { opacity: 1; transform: translateY(0); } 
+            100% { opacity: 0; transform: translateY(-60px); } 
+        }
+
+        /* 부스터 타임 게이지 */
+        #booster-gauge-container { width: 100%; height: 10px; background-color: #333; border-radius: 5px; margin: 15px 0; overflow: hidden; }
+        #booster-gauge { width: 0%; height: 100%; background-color: #f44336; transition: width 0.1s linear; }
+
+        /* 리스트 스타일 (상점/랭킹) */
+        ul { list-style-type: none; padding: 0; text-align: left; }
+        li { padding: 12px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        
+        .online-dot { width: 10px; height: 10px; background-color: #4CAF50; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .offline-dot { width: 10px; height: 10px; background-color: #666; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        
+        /* 초기화 버튼 */
+        #reset-btn { position: absolute; left: 15px; bottom: 15px; background-color: #d32f2f; }
+        #reset-btn:hover { background-color: #b71c1c; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="screen active">
+        <h2>블랙 클리커</h2>
+        <p>이름을 정해주세요 (최대 10글자)</p>
+        <input type="text" id="username" maxlength="10" placeholder="이름 입력">
+        <br>
+        <button onclick="startGame()">시작하기</button>
+        <p id="login-msg" style="color: #ff5252;"></p>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="side-buttons">
+            <button onclick="showScreen('ranking-screen')">🏆 랭킹</button>
+            <button onclick="showScreen('shop-screen')">🛒 상점</button>
+        </div>
+        <h2 id="player-name"></h2>
+        
+        <img id="character" src="https://drive.google.com/uc?id=1KC3uO9TS24AqJDHBIwkje51D-lf46rRj" alt="캐릭터" onclick="clickCharacter(event)">
+        
+        <div id="score-display">점수: <span id="score">0</span></div>
+        
+        <div id="booster-gauge-container">
+            <div id="booster-gauge"></div>
+        </div>
+        <button id="booster-btn" onclick="startBooster()" disabled>🚀 부스터 작동!</button>
+        
+        <button id="reset-btn" onclick="resetGame()">초기화</button>
+    </div>
+
+    <div id="shop-screen" class="screen">
+        <h2>상점</h2>
+        <button onclick="showScreen('game-screen')">돌아가기</button>
+        <div style="margin: 15px 0; font-size: 18px;">내 점수: <span id="shop-score">0</span></div>
+        <ul>
+            <li>
+                <div>
+                    <strong>도우미: 야채호빵 (<span id="helper-count">0</span>/5)</strong><br>
+                    <small>클릭 시 추가 점수 획득</small>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <img src="https://drive.google.com/uc?id=16VIjZkpvW0fmjgt1BnJZR4Ey88iLKckz" alt="도우미" style="width: 35px; height: 35px; margin-right: 10px; object-fit: contain;">
+                    <button onclick="buyHelper()">50점</button>
+                </div>
+            </li>
+            <li>
+                <div>
+                    <strong>자동 클릭 업그레이드 (<span id="upgrade-count">0</span>)</strong><br>
+                    <small>1초마다 점수 획득</small>
+                </div>
+                <button onclick="buyUpgrade()">150점</button>
+            </li>
+            <li>
+                <div>
+                    <strong>부스터 강화 (<span id="booster-power-count">0</span>)</strong><br>
+                    <small>부스터 배수 증가</small>
+                </div>
+                <button onclick="buyBoosterPower()">100점</button>
+            </li>
+        </ul>
+    </div>
+
+    <div id="ranking-screen" class="screen">
+        <h2>랭킹 (Top 50)</h2>
+        <button onclick="showScreen('game-screen')">돌아가기</button>
+        <ul id="ranking-list">
+            </ul>
+    </div>
+
+<script>
+    // 상태 저장 변수들
+    let user = {
+        name: "",
+        score: 0,
+        clickPower: 0,
+        autoClickLevel: 0,
+        boosterPower: 0,
+        boosterGauge: 0
+    };
+
+    // 부스터 타임 관련 변수
+    let boosterActive = false;
+    let boosterMultiplier = 2.0;
+    let boosterCooldown = 0;
+    let boosterDuration = 10;
+    
+    // 이미지 링크 정의 (변환된 download 형식)
+    const imgDefault = "https://drive.google.com/uc?id=1KC3uO9TS24AqJDHBIwkje51D-lf46rRj";
+    const imgClicked = "https://drive.google.com/uc?id=1DsANj7KGSq-VohHte6wXGOu-C0jpBBxi";
+
+    // 가상의 기존 유저 및 금지어
+    const mockDatabase = ["지존전사", "김철수", "클릭마스터"];
+    const badWords = ["바보", "멍청이", "욕설"];
+
+    // 초기화 (캐시/로컬스토리지 확인)
+    window.onload = function() {
+        const savedData = localStorage.getItem("black_clicker_data_v2");
+        if (savedData) {
+            user = JSON.parse(savedData);
+            document.getElementById("player-name").innerText = user.name;
+            updateScoreUI();
+            updateBoosterUI();
+            showScreen("game-screen");
+            startAutoClick();
+        }
+    };
+
+    function saveGame() {
+        localStorage.setItem("black_clicker_data_v2", JSON.stringify(user));
+    }
+
+    // 초기화 기능
+    function resetGame() {
+        if (confirm("정말로 초기화하시겠습니까? 모든 데이터가 삭제됩니다.")) {
+            localStorage.removeItem("black_clicker_data_v2");
+            user = { name: "", score: 0, clickPower: 0, autoClickLevel: 0, boosterPower: 0, boosterGauge: 0 };
+            boosterActive = false;
+            boosterCooldown = 0;
+            document.getElementById("username").value = "";
+            document.getElementById("login-msg").innerText = "";
+            showScreen("login-screen");
+            if (autoClickInterval) clearInterval(autoClickInterval);
+        }
+    }
+
+    // 화면 전환 함수
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        if (screenId === 'ranking-screen') loadRanking();
+        if (screenId === 'shop-screen') updateShopUI();
+    }
+
+    // 1. 로그인 (이름 검사 및 중복 검사)
+    function startGame() {
+        const nameInput = document.getElementById("username").value.trim();
+        const msg = document.getElementById("login-msg");
+
+        if (nameInput.length < 1 || nameInput.length > 10) {
+            msg.innerText = "이름은 1~10글자 사이여야 합니다.";
+            return;
+        }
+
+        // 욕설 필터링
+        for (let word of badWords) {
+            if (nameInput.includes(word)) {
+                msg.innerText = "부적절한 단어가 포함되어 있습니다.";
+                return;
+            }
+        }
+
+        // 중복 이름 검사 (가짜 DB와 비교)
+        if (mockDatabase.includes(nameInput)) {
+            msg.innerText = "이미 존재하는 이름입니다.";
+            return;
+        }
+
+        user.name = nameInput;
+        document.getElementById("player-name").innerText = user.name;
+        saveGame();
+        showScreen("game-screen");
+    }
+
+    // 2 & 3. 클릭 액션 및 이미지 변경
+    function clickCharacter(event) {
+        const charEl = document.getElementById("character");
+        
+        // 클릭 시 이미지 변경 (클릭 이미지로)
+        charEl.src = imgClicked;
+        setTimeout(() => {
+            charEl.src = imgDefault; // 0.15초 뒤 기본 이미지로
+        }, 150);
+
+        // 점수 획득 계산: (1~3 랜덤 + 도우미 파워) * 부스터 배수
+        let base = Math.floor(Math.random() * 3) + 1 + user.clickPower;
+        let finalMultiplier = boosterActive ? (boosterMultiplier + user.boosterPower * 0.1) : 1.0;
+        let finalScore = Math.floor(base * finalMultiplier);
+        user.score += finalScore;
+
+        // 부스터 게이지 증가 (부스터 작동 중이 아닐 때만)
+        if (!boosterActive) {
+            user.boosterGauge = Math.min(100, user.boosterGauge + 1 + user.boosterPower * 0.2);
+            updateBoosterUI();
+        }
+
+        updateScoreUI();
+        saveGame();
+        showFloatingText(event, `+${finalScore}`);
+    }
+
+    // 플로팅 텍스트 (+점수 애니메이션)
+    function showFloatingText(event, text) {
+        const gameScreen = document.getElementById("game-screen");
+        const floatEl = document.createElement("div");
+        floatEl.classList.add("floating-text");
+        floatEl.innerText = text;
+        
+        // 모바일/PC 좌표 처리
+        const rect = gameScreen.getBoundingClientRect();
+        const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+        const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+        
+        floatEl.style.left = (clientX - rect.left - 15) + 'px';
+        floatEl.style.top = (clientY - rect.top - 30) + 'px';
+        
+        gameScreen.appendChild(floatEl);
+        
+        // 애니메이션 끝나면 요소 삭제
+        setTimeout(() => {
+            floatEl.remove();
+        }, 1000);
+    }
+
+    function updateScoreUI() {
+        document.getElementById("score").innerText = Math.floor(user.score);
+        document.getElementById("shop-score").innerText = Math.floor(user.score);
+    }
+
+    // 부스터 UI 업데이트
+    function updateBoosterUI() {
+        const gaugeEl = document.getElementById("booster-gauge");
+        const btnEl = document.getElementById("booster-btn");
+        
+        gaugeEl.style.width = user.boosterGauge + "%";
+        
+        if (boosterActive) {
+            btnEl.innerText = "🚀 부스터 가동 중!";
+            btnEl.disabled = true;
+        } else if (user.boosterGauge >= 100) {
+            btnEl.innerText = "🚀 부스터 작동!";
+            btnEl.disabled = false;
+        } else if (boosterCooldown > 0) {
+            btnEl.innerText = `⏳ 부스터 쿨다운 (${boosterCooldown}초)`;
+            btnEl.disabled = true;
+        } else {
+            btnEl.innerText = "🚀 부스터 게이지를 모으세요!";
+            btnEl.disabled = true;
+        }
+    }
+
+    // 부스터 작동
+    function startBooster() {
+        if (!boosterActive && user.boosterGauge >= 100) {
+            boosterActive = true;
+            user.boosterGauge = 0; // 게이지 초기화
+            updateBoosterUI();
+            
+            // 부스터 지속 시간 타이머
+            let duration = boosterDuration;
+            let boosterTimer = setInterval(() => {
+                duration--;
+                if (duration <= 0) {
+                    clearInterval(boosterTimer);
+                    boosterActive = false;
+                    startBoosterCooldown();
+                }
+                updateBoosterUI();
+            }, 1000);
+        }
+    }
+
+    // 부스터 쿨다운
+    function startBoosterCooldown() {
+        boosterCooldown = 60; // 60초 쿨다운
+        updateBoosterUI();
+        
+        let cooldownInterval = setInterval(() => {
+            boosterCooldown--;
+            if (boosterCooldown <= 0) {
+                clearInterval(cooldownInterval);
+                updateBoosterUI();
+            } else {
+                updateBoosterUI();
+            }
+        }, 1000);
+    }
+
+    // 4. 상점 기능
+    function updateShopUI() {
+        document.getElementById("helper-count").innerText = user.clickPower;
+        document.getElementById("upgrade-count").innerText = user.autoClickLevel;
+        document.getElementById("booster-power-count").innerText = user.boosterPower;
+    }
+
+    // 도우미 (야채호빵) 구매
+    function buyHelper() {
+        if (user.clickPower >= 5) {
+            alert("도우미는 최대 5개까지 구매 가능합니다.");
+            return;
+        }
+        if (user.score >= 50) {
+            user.score -= 50;
+            user.clickPower += 1; // 클릭 당 점수 +1
+            updateScoreUI(); updateShopUI(); saveGame();
+        } else {
+            alert("점수가 부족합니다!");
+        }
+    }
+
+    // 자동 클릭 업그레이드 구매
+    function buyUpgrade() {
+        if (user.score >= 150) {
+            user.score -= 150;
+            user.autoClickLevel += 1; // 1초 당 점수 +1
+            if (user.autoClickLevel === 1) startAutoClick(); // 첫 구매 시 자동클릭 시작
+            updateScoreUI(); updateShopUI(); saveGame();
+        } else {
+            alert("점수가 부족합니다!");
+        }
+    }
+
+    // 부스터 강화 구매
+    function buyBoosterPower() {
+        if (user.score >= 100) {
+            user.score -= 100;
+            user.boosterPower += 1; // 부스터 배수 및 게이지 획득량 증가
+            updateScoreUI(); updateShopUI(); saveGame();
+        } else {
+            alert("점수가 부족합니다!");
+        }
+    }
+
+    // 자동 클릭 로직
+    let autoClickInterval;
+    function startAutoClick() {
+        if (user.autoClickLevel > 0 && !autoClickInterval) {
+            autoClickInterval = setInterval(() => {
+                // 부스터 활성화 시 자동 클릭 점수도 배수 적용
+                let scoreToAdd = user.autoClickLevel * (boosterActive ? boosterMultiplier : 1.0);
+                user.score += Math.floor(scoreToAdd);
+                updateScoreUI();
+                saveGame();
+            }, 1000); // 1초마다 점수 증가
+        }
+    }
+
+    // 5. 랭킹 시스템 (가상 데이터 생성)
+    function loadRanking() {
+        const list = document.getElementById("ranking-list");
+        list.innerHTML = "";
+
+        // 가짜 유저 데이터 생성 (내 점수를 포함하기 위해 배열 생성)
+        let players = [];
+        for (let i = 1; i <= 49; i++) {
+            players.push({
+                name: `유저${i}`,
+                score: Math.floor(Math.random() * 10000), // 가짜 점수 범위 확대
+                isOnline: Math.random() > 0.5 // 50% 확률로 온라인
+            });
+        }
+        
+        // 내 데이터 추가
+        players.push({ name: user.name, score: user.score, isOnline: true });
+        
+        // 점수 순으로 정렬
+        players.sort((a, b) => b.score - a.score);
+
+        // 상위 50명 화면에 그리기
+        for (let i = 0; i < 50; i++) {
+            if (!players[i]) break;
+            const li = document.createElement("li");
+            
+            // 내 이름은 굵게 및 파란색 표시
+            const isMe = players[i].name === user.name;
+            const nameStyle = isMe ? "font-weight: bold; color: #64b5f6;" : "";
+            const onlineDot = players[i].isOnline ? "<span class='online-dot'></span>" : "<span class='offline-dot'></span>";
+
+            li.innerHTML = `
+                <div>${i + 1}등. ${onlineDot} <span style="${nameStyle}">${players[i].name}</span></div>
+                <div>${Math.floor(players[i].score)}점</div>
+            `;
+            list.appendChild(li);
+        }
+    }
+</script>
+
+</body>
+</html>
